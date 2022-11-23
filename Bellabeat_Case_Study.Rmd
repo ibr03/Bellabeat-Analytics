@@ -1,0 +1,353 @@
+---
+title: "Bellabeat Case Study"
+author: "Ibrahim Abdullah"
+date: "2022-11-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Bellabeat (Fitness Tracker) Case Study
+
+## Introduction
+
+### About
+
+Bellabeat is a high-tech company that manufactures health-focused smart products. Its co-founder, Urška Sršen, used her background as an artist to develop beautifully designed technology that informs and inspires women around the world. Collecting data on activity, sleep, stress, and reproductive health has allowed Bellabeat to empower women with knowledge about their own health and habits. Since it was founded in 2013, Bellabeat has grown rapidly and quickly positioned itself as a tech-driven wellness company for women.
+
+### Business Task
+
+Analyze smart device usage data from non-Bellabeat products in order to gain insight into how people are already using their smart devices and apply insights to Bellabeat marketing strategy.
+
+### Questions for analysis:
+
+* What are some trends in smart device usage?
+* How could these trends apply to Bellabeat customers?
+* How could these trends help influence Bellabeat marketing strategy?
+
+### Stakeholders:
+
+* **Urška Sršen**: Bellabeat’s cofounder and Chief Creative Officer
+* **Sando Mur**: Mathematician and Bellabeat’s cofounder; key member of the Bellabeat executive team
+* **Bellabeat marketing analytics team**: A team of data analysts responsible for collecting, analyzing, and reporting data that helps guide Bellabeat’s marketing strategy.
+
+
+### Data Sources
+
+[FitBit Fitness Tracker Data](https://www.kaggle.com/datasets/arashnic/fitbit) (CC0: [Public Domain](https://creativecommons.org/publicdomain/zero/1.0/), dataset made available through [Mobius](https://www.kaggle.com/arashnic)): This Kaggle data set contains personal fitness tracker from thirty fitbit users. Thirty eligible Fitbit users consented to the submission of personal tracker data, including minute-level output for physical activity, heart rate, and sleep monitoring. It includes information about daily activity, steps, and heart rate that can be used to explore users’ habits.
+
+### Tools and Software Used
+
+* Preliminary Examination: Microsoft Excel
+* Exploratory Analysis: R
+* Formatting and Cleaning: R
+* Visualization: R
+
+## Data Preparation
+
+There are a total of 18 data sets, some of which are repeated and already included in the daily activity data set. Data collected is from date 04-12-2016 to 05-12-2016. 
+There could have been more metadata about data sets as some variables lack interpretation, such as units of certain measures like distance covered, calories burned. Measure of MET level is also different from the commonly used level, interpretation of MET level needs further clarification. The data sets also contain data about heart rate every 5 seconds and calories burned per day, however, everyone has different baselines. It would be helpful if we can have baseline (resting) rates of the two variables so we can calculate the percentage change and analyse more accurately. It would also be helpful to learn more about how various activity levels (light, very active levels) are defined in terms of heart rate change, the type of activity (e.g. cardio, strength training) or other criteria.
+
+
+
+``` {r load packages}
+#Loading packages for data manipulation
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(janitor)
+```
+
+### Data Exploration
+
+Uploading data sets to examine variables and available information.
+
+``` {r}
+daily_activity <- read_csv("C://Users//Ibrahim//Desktop//Google Data Analytics Course//Capstone Projects//Bellabeat Case Study//DataSet//archive//Fitabase Data 4.12.16-5.12.16//dailyActivity_merged.csv")
+
+sleep_day <- read_csv("C://Users//Ibrahim//Desktop//Google Data Analytics Course//Capstone Projects//Bellabeat Case Study//DataSet//archive//Fitabase Data 4.12.16-5.12.16//sleepDay_merged.csv")
+
+MET_minutes <- read_csv("C://Users//Ibrahim//Desktop//Google Data Analytics Course//Capstone Projects//Bellabeat Case Study//DataSet//archive//Fitabase Data 4.12.16-5.12.16//minuteMETSNarrow_merged.csv")
+
+hourly_steps <- read_csv("C://Users//Ibrahim//Desktop//Google Data Analytics Course//Capstone Projects//Bellabeat Case Study//DataSet//archive//Fitabase Data 4.12.16-5.12.16//hourlySteps_merged.csv")
+
+hourly_calories <- read_csv("C://Users//Ibrahim//Desktop//Google Data Analytics Course//Capstone Projects//Bellabeat Case Study//DataSet//archive//Fitabase Data 4.12.16-5.12.16//hourlyCalories_merged.csv")
+
+```
+Inspecting the data sets using head(), str(), n_distinct() to find out total number of participants and how many days of data is available.
+
+``` {r}
+head(daily_activity)
+
+str(daily_activity)
+
+n_distinct(daily_activity$Id)
+
+n_distinct(daily_activity$ActivityDate)
+
+```
+
+Inspecting sleep_day data set.
+
+``` {r}
+head(sleep_day)
+
+str(sleep_day)
+
+n_distinct(sleep_day$Id)
+
+n_distinct(sleep_day$SleepDay)
+
+```
+Inspecting hourly_steps data set.
+
+``` {r}
+head(hourly_steps)
+
+str(hourly_steps)
+
+n_distinct(hourly_steps$Id)
+
+```
+
+Inspecting hourly_calories data set.
+
+``` {r}
+head(hourly_calories)
+
+str(hourly_calories)
+
+n_distinct(hourly_calories$Id)
+
+```
+
+Inspecting MET_minutes data set.
+
+``` {r}
+head(MET_minutes)
+
+str(MET_minutes)
+
+n_distinct(MET_minutes$Id)
+
+max(MET_minutes$METs)
+
+min(MET_minutes$METs)
+```
+
+If METs are metabolic equivalents, then the maximum and minimum values seem out of sorts. As per resources available on the [internet](https://en.wikipedia.org/wiki/Metabolic_equivalent_of_task), generally MET values range between 1 to 15. 
+So I will be using daily_activity, sleep_day, hourly_steps, and hourly_calories data sets for analysis.
+
+## Data Processing
+
+Data sets are cleaned using R in RStudio. daily_activity and sleep_day data sets are merged for complete analysis. Date containing columns will be renamed as "date" before merging them. Since the date variable has the class character instead of date, it needs to be converted to date.
+
+
+``` {r}
+# daily_activity df clean
+clean_daily_activity <- clean_names(daily_activity) %>%
+  rename(date = activity_date) %>%
+  remove_empty(which = c("rows", "cols"))
+
+clean_daily_activity$date <- as.Date(clean_daily_activity$date, format = "%m/%d/%Y")
+
+# sleep_day df clean
+clean_sleep_day <- clean_names(sleep_day) %>%
+  rename(date = sleep_day) %>%
+  remove_empty(which = c("rows", "cols"))
+
+clean_sleep_day$date <- as.Date(clean_sleep_day$date, format = "%m/%d/%Y")
+
+# hourly_steps df clean
+clean_hourly_steps <- clean_names(hourly_steps) %>%
+  remove_empty(which = c("rows", "cols"))
+
+# hourly_calories df clean
+clean_hourly_calories <- clean_names(hourly_calories) %>%
+  remove_empty(which = c("rows", "cols"))
+
+```
+
+No row was empty, data sets can be inspected again to see the cleaned versions.
+
+``` {r}
+glimpse(clean_daily_activity)
+glimpse(clean_sleep_day)
+glimpse(clean_hourly_steps)
+glimpse(clean_hourly_calories)
+
+```
+
+## Analysis & Visualization
+
+### Statistical Results
+
+Average number of total steps taken per day:
+``` {r}
+mean(clean_daily_activity$total_steps)
+```
+Average number of total sedentary minutes spent per day:
+```{r}
+mean(clean_daily_activity$sedentary_minutes)
+```
+
+
+First, we will try to see if there is any relationship among variables in clean_daily_activity dataframe.
+
+``` {r}
+# Relationship between total steps taken daily and sedentary time
+ggplot(clean_daily_activity, aes(x = sedentary_minutes, y= total_steps)) + geom_point() + labs(title = "Total Sedentary Time and Steps Count Daily") + geom_smooth()
+
+cor(clean_daily_activity$sedentary_minutes, clean_daily_activity$total_steps)
+```
+
+It can be inferred that the amount of sedentary time spent by a person is not directly related with the number of steps taken in a day. It is interesting to note here from the above plot that even if the person spent more than average amount of sedentary time (see point cluster near 1000 minutes) they were still spending more than average number of total steps. The correlation is also negative between the two variables.
+
+We can further look at hourly_calories and hourly_steps data sets to see if there is any general trend as we have considerable number of observations (22,099) for 33 participants.
+
+``` {r}
+# Merging two data sets by "id" and "activity hour"
+
+steps_calories <- merge(clean_hourly_steps, clean_hourly_calories, by=c("id", "activity_hour"))
+
+glimpse(steps_calories)
+head(steps_calories)
+
+steps_calories %>% group_by(id) %>% summarise(count_records =n()) %>% arrange(count_records)
+```
+We can see that we have enough records (minimum 88 and maximum 736) for each participant, so we can plot each participant's step count versus calories burnt to draw any possible generalized inferences.
+
+``` {r}
+# Plotting hourly steps versus hourly calories for each participant
+ggplot(steps_calories, aes(x=calories, y=step_total)) + geom_jitter() + labs(title="Hourly Calorie Burn and Hourly Step Count for Each Participant") + facet_wrap(~id) + geom_smooth(formula = y ~ x, method = "lm")
+
+
+```
+
+We can see that for all participants, calories burnt every hour tend to be strongly related with hourly step count, i.e., the more steps one takes in an hour, the more calories they will burn. Checking correlation between the two variables also validates the above plots that they are strongly correlated.
+
+Correlation between calories and step_total:
+```{r}
+cor(steps_calories$step_total, steps_calories$calories)
+```
+### Checking relationship between activity and sleep
+
+clean_daily_activity and clean_sleep_day data sets are merged, and a new variable "bed_awake_time" is introduced to check its effects on activity.
+
+``` {r}
+
+# merging data sets by "id" and "date"
+sleep_and_activity <- merge(clean_daily_activity, clean_sleep_day, by = c("id", "date"))
+
+# adding variable "bed_awake_time"
+sleep_and_activity <- mutate(sleep_and_activity, bed_awake_time = total_time_in_bed - total_minutes_asleep)
+
+n_distinct(sleep_and_activity$id)
+
+glimpse(sleep_and_activity)
+
+```
+
+We will visualize to find out any relationship if it exists between the variables of sleep_and_activity data set.
+
+
+``` {r}
+ggplot(sleep_and_activity, aes(x=total_minutes_asleep, y=sedentary_minutes)) + geom_point() + geom_smooth() + labs(title = "Sleep Duration and Sedentary Time")
+
+cor(sleep_and_activity$total_minutes_asleep, sleep_and_activity$sedentary_minutes)
+
+```
+
+As per the above plot, a negative correlation (-0.599) seems to exist between sedentary_minutes and total_minutes_asleep, so more the amount of sedentary time spent by a participant, the less time they would spend being asleep.
+
+Next, we can check for effects of sleep on calories burnt.
+
+```{r}
+ggplot(sleep_and_activity, aes(x=total_minutes_asleep, y=calories)) + geom_point() + geom_smooth()
+
+cor(sleep_and_activity$total_minutes_asleep, sleep_and_activity$calories)
+
+```
+
+No discernible correlation seems to exist between these two variables.
+
+### Checking for any day of week influence
+
+Checking to see if there is any particular day or days when people's activity levels and sleep are strongly influenced.
+
+``` {r}
+sleep_and_activity <- mutate(sleep_and_activity, day = wday(date, label = TRUE))
+
+glimpse(sleep_and_activity)
+
+```
+
+``` {r}
+# Aggregate data by day of week to check averages
+summary_week <- sleep_and_activity %>% group_by(day) %>%
+  summarise(avg_daily_steps = mean(total_steps), avg_asleep_minutes = mean(total_minutes_asleep), 
+            avg_bed_awake_time = mean(bed_awake_time), 
+            avg_sedentary_minutes = mean(sedentary_minutes),
+            avg_light_active_minutes = mean(lightly_active_minutes), 
+            avg_fairly_active_minutes = mean(fairly_active_minutes), 
+            avg_very_active_minutes = mean(very_active_minutes), 
+            avg_calories = mean(calories))
+
+head(summary_week)
+```
+
+``` {r}
+ggplot(summary_week, aes(x=day, y = avg_daily_steps)) + geom_col(fill = "dark violet") + labs(title = "Weekly Step Count")
+```
+
+Participants have maximum daily steps on Saturday, which could be due to lot of people going out on weekends, and least on Sunday as it would be the rest day for most of the working people and students to spend time resting.
+
+``` {r}
+library(patchwork)
+
+p1 <- ggplot(summary_week, aes(x = day, y = avg_asleep_minutes)) + geom_col(fill = "#008000") + labs(title = "Average Weekly Sleep Duration") + coord_flip()
+  
+p2 <- ggplot(summary_week, aes(x = day, y = avg_bed_awake_time)) + geom_col(fill = "#008000") + labs(title = "Average Weekly Awake Time In Bed") + coord_flip()
+
+p1 + p2
+
+```
+
+We can infer from above column charts that Sunday is the day when people tend to sleep more, and also spend more awake time in bed. Possibly due to Sunday being the day when people prepare to start their work week and go to bed earlier than their actual sleep time. Or it could also be due to people spending some extra time in bed being awake in the morning before going to work.
+
+``` {r}
+
+ggplot(summary_week, aes(x = day, group = 1)) + geom_line(aes(y = avg_sedentary_minutes, color = "avg_sedentary_minutes")) + geom_line(aes(y = avg_light_active_minutes, color = "avg_light_active_minutes")) + geom_line(aes(y = avg_fairly_active_minutes, color = "avg_fairly_active_minutes")) + geom_line(aes(y = avg_very_active_minutes, color = "avg_very_active_minutes")) + labs(x = "Day", y = "Minutes")
+
+```
+
+On observing the above line chart, we can infer that on an average, Saturday and Monday are the most active days of the week, and Sunday remains the least active day. This is also confirmed by the hourly step count which showed as Saturday with the highest step weekly step count. 
+
+## Recommendations
+
+* **Hourly step count is a better representation of being active than daily count as more the number of steps one can take in an hour, the more active they can be. So for the Bellabeat app, step count goals should be set by hour instead of by day to encourage users to be more active.**
+
+* **As Sunday is the least active day, some kind of interesting physical activity challenges to be performed on this day can be included for encouraging users to spend less sedentary time.**
+
+* **A summary of sedentary minutes spent against the active minutes per day can be included in the app for the users to become more aware and encouraged to start being more active.**
+
+* **Personalized recommendations to customers based on their preference. If one wants to gain endurance, it could recommend setting more total steps and longer distances as daily targets whereas if the goal is to burn calories fast it could recommend the most active kind of activity**
+
+## References
+
+1. [Bellabeat (Fitness Tracker) Capstone by Haley Ye](https://www.kaggle.com/code/haleyye/bellabeat-fitness-tracker-capstone?scriptVersionId=89924938)
+
+2. [Bellabeat Marketing Analysis by ERICZHENG0404](https://www.kaggle.com/code/ericzheng0404/bellabeat-marketing-analysis/notebook)
+
+3. [Metabolic Equivalent of Task](https://en.wikipedia.org/wiki/Metabolic_equivalent_of_task)
+
+4. [How fitness tracker insights are changing the game for personal fitness](https://www.xplortechnologies.com/us/resources/blog/how-fitness-tracker-insights-are-changing-game-personal-fitness)
+
+
+
+
+
+
+
